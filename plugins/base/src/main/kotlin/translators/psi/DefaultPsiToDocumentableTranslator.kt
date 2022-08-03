@@ -65,13 +65,23 @@ class DefaultPsiToDocumentableTranslator(
                 ?: listOf()
             val localFileSystem = VirtualFileManager.getInstance().getFileSystem("file")
 
-            val psiFiles = sourceRoots.parallelMap { sourceRoot ->
+            val psiFiles = mutableListOf<PsiJavaFile>()
+            psiFiles.addAll(sourceRoots.parallelMap { sourceRoot ->
                 sourceRoot.absoluteFile.walkTopDown().mapNotNull {
                     localFileSystem.findFileByPath(it.path)?.let { vFile ->
                         PsiManager.getInstance(environment.project).findFile(vFile) as? PsiJavaFile
                     }
                 }.toList()
-            }.flatten()
+            }.flatten())
+            environment.configuration.javaSourceRoots.forEach {
+                if (it.endsWith(".java")){
+                    localFileSystem.findFileByPath(it)?.let{vFile ->
+                        (PsiManager.getInstance(environment.project).findFile(vFile) as? PsiJavaFile)?.let { psiJavaFile ->
+                            psiFiles.add(psiJavaFile)
+                        }
+                    }
+                }
+            }
 
             val docParser =
                 DokkaPsiParser(
